@@ -241,3 +241,1094 @@ press save
  You can find the repo with jenkinsfile here:
  
  https://github.com/Sonal0409/DevOpsCodeDemo/blob/master/Jenkinsfile
+ 
+ 
+ sep30 notes
+ 
+ JAVA Installation
+
+SEE THAT YOU ARE IN ROOT DIRECTORY
+
+# yum install java-1.8.0-openjdk-devel
+# alternatives --config java
+# vim /etc/profile
+i
+export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.265.b01-1.amzn2.0.1.x86_64
+export PATH=$JAVA_HOME/bin:$PATH
+ESC :wq!
+# source /etc/profile
+****************************************************
+
+INSTALL JENKINS
+
+Go to https://pkg.jenkins.io/redhat-stable/
+
+and copy these commands
+
+ # sudo wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo
+ # sudo rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io.key
+    
+    yum install epel-release # repository that provides 'daemonize'
+    
+    sudo amazon-linux-extras install epel
+
+  yum install jenkins
+  
+ # systemctl start jenkins
+ # systemctl status jenkins
+ # clear
+ # cat /var/lib/jenkins/secrets/initialAdminPassword
+
+Click on install plugins
+Give username and password details
+Jenkisn is ready to use
+
+
+Creation of a Job:
+************************************
+
+#1 Jenkins --> New Item --> Job1 --> Build --> shell comand---> echo 'this is my first job'
+
+Save --> click on Build Now  --> click on build number --> click on Console to see output
+
+
+
+
+Code Based pipeline
+******************
+
+Set up tools in global tool configuration:
+
+ 1. jdk ==> myjava
+ 2. maven ==> mymaven
+
+
+Every job : common step
+
+  SCM  ==> https://github.com/Sonal0409/DevOpsCodeDemo.git
+
+Every job : maven command
+
+Job1:
+  maven command
+ compile the code => compile
+
+ connect job 1 with job2
+
+Job2: Unit testing
+
+ maven command
+ test the code => test
+
+ 
+ post build action:
+
+    convert junit report
+
+Connected to job 3
+
+Job3: Code coverage
+
+ maven command
+ coverage the code => cobertura:cobertura -Dcobertura.report.format=xml
+
+ 
+ post build action:
+
+    convert coverage report ==> cobertura
+
+Connected to job 4
+
+Job4: package
+
+ maven command
+ package the code => package
+
+Connected to job 5
+
+Job5: Code review 
+
+ maven command
+ code review  => pmd:pmd
+
+ 
+ post build action:
+
+    convert pmd.xml report
+
+
+
+We cna do all of this process in a signle by write code
+
+
+With Jenkins 1 version : scripted pipeline syntax:
+
+node{
+
+was complex
+jenkins admin has be really good in scripting because:
+
+ > there is proper structure to the script
+ > the entire script is as per the admin 
+ > script are written in DSL which is groovy based 
+ > when you executed the script, jenkisn doesnot validate the code at first
+ > if the pieline stop in middle, you have start the pipeline again from the very step, which is time consuming
+
+
+In jenkins 2 you will write the code using Declarative pipeline syntax
+
+> write script for pipeline is very easy
+
+> Declarative pipeline syntax is also groovy based and very easy to write
+
+> Declarative pipeline syntax is well defiend and there is a structure/template that admin has to follow in order to write the code
+
+> Jenkins provides a snippet generator tool, that automatically geenrates your pipeline code
+
+> beacuse we define everything in a proper structure, its easy to read and easy to write.
+
+> if you dont follow the structure given by jenkins, you will get error
+
+> when you start exeucting the pipeline ==> 
+
+   > jenkisn will validate the code give you errors
+
+  > jenskin will exeucte the code
+
+  > in case jenkisn pipeline stops in the middle, you can fix the issue and restart from that particular stage itself
+
+> piepline is execution multiple stages/tasks 
+
+  > these tasks can be executed in sequence or in parallel
+
+> jenkisn can read or fetch the pipeline code form github and execute the pipeline --> Jenkinsfile
+
+
+ Structure of writing Jenkins declarative syntax
+****************************
+  key 'value'
+
+declarative syntax consist of various blocks
+
+1. all the code will be placed inside the pipeline block
+2. In the pipeline block you will create tools block, defining what tools to be used in the pipeline
+ 
+ pipeline{
+
+  tools{
+     jdk 'myjava'
+     maven 'mymaven'
+}
+
+
+
+agent any
+
+stages{
+
+   stage('Clone repo')
+    {
+      steps{
+           
+        git 'https://github.com/Sonal0409/DevOpsCodeDemo.git'
+
+               }
+
+    }
+
+ stage('Compile the code')
+    {
+      steps{
+           
+      sh 'mvn compile'
+
+               }
+
+    }
+
+ stage('Code Review')
+    {
+      steps{
+           
+      sh 'mvn pmd:pmd'
+
+               }
+
+    }
+
+
+ stage('test the code')
+    {
+      steps{
+       echo 'Testing'    
+      sh 'mvn test'
+
+
+               }
+      
+       post{
+
+       success{
+                    junit 'target/surefire-reports/*.xml'
+               }
+                }
+    }
+
+ stage('Coverage of the code')
+    {
+      steps{
+        
+      sh 'mvn cobertura:cobertura -Dcobertura.report.format=xml'
+
+
+               }
+      
+       post{
+
+       success{
+                    cobertura autoUpdateHealth: false, autoUpdateStability: false, coberturaReportFile: 'target/site/cobertura/coverage.xml', conditionalCoverageTargets: '70, 0, 0', failUnhealthy: false, failUnstable: false, lineCoverageTargets: '80, 0, 0', maxNumberOfBuilds: 0, methodCoverageTargets: '80, 0, 0', onlyStable: false, sourceEncoding: 'ASCII', zoomCoverageChart: false
+               }
+                }
+    }
+
+
+ stage('Package the code')
+    {
+      steps{
+           
+      sh 'mvn package'
+
+               }
+
+    }
+
+}
+}
+
+
+Jenkins file:
+***************
+
+Save the script in GITHUb - in a repo
+
+> Jenkins to pick the script from github and run it 
+
+   > go to the repo
+   > cretae a new file with name as Jenkinsfile
+   > In the file place your code
+
+How will jenkisn pickup this code now?
+
+   > create a job in jenkins -- template pipeline 
+
+   > select option pipeline script from SCM
+    > sCM - git
+
+    > give repo path
+
+press save
+   
+
+> Whenever there is an update on the script in github, this jenkins code should run automatically
+
+       > set up a trigger on the job
+       
+       
+ You can find the repo with jenkinsfile here:
+ 
+ https://github.com/Sonal0409/DevOpsCodeDemo/blob/master/Jenkinsfile
+ 
+ docker
+ 
+ Docker Notes:
+
+
+A node/server where docker is installed is called as DOCKER HOST
+
+
+
+note: install docker on the instance which has jenkins
+
+Install Docker
+
+yum install docker -y
+
+Start docker service
+
+systemctl start docker
+
+what is image?
+it is static file,read only file,which cant be chnged,which wen run villcreate the conatiner
+it is the heart of conatiner
+
+dockerfile ?
+set of instrauction wen build vill give an image 
+
+
+Docker hub is the public registry for all Base images:
+
+https://hub.docker.com/
+
+
+Image name is like this 
+
+  ImageName:tagname
+
+Pull an Image to local:
+
+
+	docker pull ubuntu
+
+	docker pull ubuntu:18.04
+
+How to check if images is pulled to local or not:
+
+	docker images
+
+How to delete an Image from docker Host- Local
+
+ 	docker rmi <imageName>
+	docker rmi ubuntu:18.04
+
+
+
+Launch a container:
+
+
+ 	docker run ubuntu
+
+> it will check if image is not there locally, then pull the image form docker hub
+
+> Then run the image to launch a container
+
+To check containers created :
+
+ docker ps -a  --> means it show num of conatiner present ps means process container means process
+
+
+Launch container with unique name
+
+docker run --name u1 ubuntu
+
+To start a container there are 2 modes
+
+
+Mode 1: Foreground mode (-it) means interactive terminal 
+ull be on the front end ull detach from the host machine and attach to the terminal,coonect to the terminal of the container
+
+When a container is started in a forground mode, 
+
+Container will be created and running & then the user will be logged on the container
+
+	docker run -it --name u2 ubuntu
+
+name given shud be unique
+
+
+Comeout of the container:
+
+CTLpq  ==> you will out of container & container will be up & running
+
+
+Mode 2: detached mode (-d)
+
+Container will be created and running & then the user will be detached from the container
+Container will be running in the background
+like gmail ,eduerka are running in the background
+
+	docker run --name n1 -d nginx
+
+u can create a dir mkdir babu
+upadate the image 
+           apt-get update
+          apt-get intall git -y
+
+we are inatlling in the containr
+it vill provide the basic library of os
+
+CTLpq to come out or exit command
+ check the container
+ 
+     docker stats
+
+resource are allocated to container by docker engine 
+         CTL c  to come out
+
+if we want to atach to the container again 
+       
+           docker attach u2
+
+let us use ngnix which is basically a appication server /web server wer appication are hosted
+
+basically the appication conatiner are hosted in detached mode
+
+ in detached mode we arent attached to container like in attached mode (it mode)
+
+ stop the running conatiner
+  
+       docker stop n1
+to start
+       docker start n1
+
+to delete the conatiners see above command
+
+Day 2:
+*********
+
+If we want to stop a container:
+
+	docker stop <containerName/id>
+
+If we want to start a container which is in Exited state
+
+	docker start <containerName/id>
+
+
+If it is an OS container, you can attach to its terminal
+
+
+ 	docker attach <containerName/id>
+
+
+if it is an application container, you can attach to its terminal
+
+	docker exec -it <containerName/id> bash
+
+ docker execute the command and atach to the terminal of the container
+
+
+OR
+
+if you want to execute a linux command on the container from the host machine
+
+
+	docker exec  <containername/id> <linuxcommand>
+
+without logging into the conatiner v can execute the linux commands from hostmachinr itself 
+
+
+
+Remove or delete containers:
+
+	docker rm -f <containername/id> <containername/id>
+
+Remove or delete all the container at once, the container may be in running status or existed
+
+	docker rm -f $(docker ps -aq)
+
+
+Remove all Images, all stopped containers
+
+	docker system prune --all
+
+Delete a single image
+
+docker rmi <imageName>
+
+Forceabily delete an Image associated to a container
+
+docker rmi -f <imageName>
+
+
+How to Access the application deployed on the container form browser of your local machine:
+***************************************************************************************
+
+** This scenario is application only to application container and not to OS container
+
+Yes, we have not deployed on the container our application code yet,
+
+But docker containers of images NGINX, HTTPD, tomcat, Wordpress, they come with an inbuilt application Page deployed on it
+
+This webpage can be accessed by the user once container is up & running
+
+On the image you can go and check in docker hub, that they are already exposed to a port number
+
+A user cannot directly reach the container from internet
+
+So for this we have to do portMapping/port Forwarding
+
+Port mapping has to be done at the time of container creation i.e. at the runtime
+
+Once the container is created, you cannot do port mapping
+
+If you forgot to do port mapping, you will have to recreate the container
+
+Port mapping is done by using the option is -p
+
+The command will be:
+
+  docker run -d --name n2 -p <systemport>:containerport nginx
+
+example:
+
+ docker run -d --name n2 -p 8989:80 nginx
+
+
+Process of accessing the container from browser is
+
+ public_ipaddress_ofEC2:System_portnumber
+
+Example:
+
+   3.145.182.255:8989
+
+
+A system port cannot be associated to 2 container
+
+
+If you dont know what system port number to use
+
+OR If youdont know what is the container port to use
+
+You can use an option called  -P  for port mapping
+
+-P : in this case docker will do the systemport and container port mapping, user doesnot have to give any port number
+
+
+Example: docker run -d --name h1 -P httpd
+
+VOlumes / Storage in Docker Containers:
+
+********************************
+
+
+Scenario 1: Preserve the data of the container on the host machine, so that even if container is deleted, that data 
+should very much be available ont he host
+
+by using volumes we can place the files from host to container and vice verse
+
+
+Volume is represented with -v option
+
+you have to create a volume(Named volume)
+
+docker volume create myvol
+
+Check the volume details:
+
+ docker volume inspect myvol
+
+
+Path where the colume is created is:
+/var/lib/docker/volumes/myvol/_data
+
+Attach/mount the volume to containers directory:
+
+docker run -it --name u2 -v myvol:/tmp ubuntu
+
+ # cd /tmp
+ # touch file1 file2
+
+ctlPQ
+
+cd /var/lib/docker/volumes/myvol/_data
+
+ls
+
+I could see the container file -> file1 file2
+
+Delete the container, still in the vol dire , you will see the files
+
+Scenario 2: Use the data preserved in the volume on a new container
+
+How we can mount volumes data on to the new container
+
+docker run -it --name u3 -v myvol:/tmp ubuntu
+
+
+Scenario 3: How multiple containers can share the data
+
+
+
+
+Another type of volume is : Bind mounts
+
+In this kind of volume, any directory of the host machine can be mounted on the container
+
+
+In GIT we have got a repo -- with code:
+
+  368  git clone https://github.com/Sonal0409/ecomm.git
+  369  ls
+  370  cd ecomm
+  371  ls
+  372  pwd
+  373  docker run -d --name web -P -v /root/ecomm/:/usr/local/apache2/htdocs/  httpd
+  374  docker ps -a
+  375  clear
+  376  docker ps -a
+  377  ls
+  378  git pull origin master
+
+Create a dockerfile using FROM, RUN, VOLUME keyword
+
+
+mkdir mydockerfiles
+cd mydockerfiles
+vim dockerfile
+
+
+FROM ubuntu
+RUN apt-get -y update
+RUN apt-get install git -y
+VOLUME /mydata
+
+
+Command to build dockerfile into an Image:
+
+
+  $ docker build -t image01 .
+
+ Check the image 
+
+$ docker images
+
+Run the image
+
+$ docker run -it --name c1 image01
+
+  # git --version
+  # cd mydata
+  # touch file1 file2
+
+comeout of container
+
+$ docker inspect < containerid>
+
+check mount section for volume path
+
+
+2. Write a dockerfile for FROM, COPY & ADD, CMD
+
+In the same directory crreate 2 files
+
+$ touch copy.txt add.txt
+
+
+FROM busybox
+COPY copy.txt /tmp
+ADD add.txt /tmp
+CMD ["sh"]
+
+
+  $ docker build -t image02 .
+
+
+3. tar file add to container
+
+
+touch compress.txt
+
+tar -czvf compress.tar.gz compress.txt
+
+vim dockerfile
+
+
+
+FROM busybox
+COPY copy.txt /tmp
+ADD compress.tar.gz /etc
+CMD ["sh"]
+
+
+$ docker build -t image03 .
+
+***************************************
+
+
+Continous integration / Continous Deployment
+
+
+code >> compiled >> test >> packaged (addressbook.war)
+
+
+Take this addressbook.war file and place it on a container
+
+So on the container we will need tomcat application
+
+
+What will be dockerfile for it then?
+
+
+FROM tomcat:9
+ADD addressbook.war /usr/local/tomcat/webapps
+EXPOSE 8080
+CMD ["catalina.sh", "run"]
+
+
+We want to deploy it from Jenkins
+
+So first get the path of your war file
+
+Go to the package job created earlier, og to the 1st build, scroll down at the end
+
+you will find the path where your address book is, copy the path
+
+for me it is:
+
+/var/lib/jenkins/workspace/5.Package/target/addressbook.war
+
+
+Now create a new job in Jenkins for deployment
+
+
+
+
+
+
+Jenkins ALL=NOPASSWD: ALL
+
+
+
+
+
+Image name in docker gives complete information from where to pull or push the images
+
+
+Push the images to docker hub
+
+A user will always push into his docker hub registry
+
+You need to mention the repository name on the image itself, for docker to push it
+
+docker push imagename
+
+docker push image01 ==> this fail, due to lack of permission to push image on docker hub librabry
+
+
+
+A user will always push into his docker hub registry
+
+for this ==> chnage the image name to include you repo name
+
+
+  docker tag image01 sonal04/image01
+
+ docker push sonal04/image01 ==> it will fail, because docker cannot authenticat to your repo
+
+so we need to first logon to docker hub from host
+
+$ docker login
+
+once logged in to docker hub from host, then do docker push
+
+
+Docker Swarm
+*****************************
+
+SETUP OF DOCKER SWARM:
+******************************
+Create 3 AWS instances and name them as Manager, worker 1 and worker 2.
+
+Go to git bash
+
+# cd downloads/
+
+# SSH path from AWS for manager
+
+# sudo su -
+
+# yum install docker
+
+# vim /etc/hostname  ==> to chnage the hostname of this machine to Manager
+
+:wq!  
+
+# init 6  ==> restart the machine
+
+
+Again open git bash
+
+# cd downloads/
+
+# SSH path from AWS for Worker1
+
+# sudo su -
+
+# yum install docker
+
+# vim /etc/hostname  ==> to chnage the hostname of this machine to Worker1
+
+:wq!  
+
+# init 6  ==> restart the machine
+
+Again open git bash
+
+# cd downloads/
+
+# SSH path from AWS for Worker2
+
+
+# sudo su -
+
+# yum install docker
+
+# vim /etc/hostname  ==> to chnage the hostname of this machine to Worker2
+
+:wq!  
+
+# init 6  ==> restart the machine
+
+****************************************
+Initialize the Swarm Manager:
+***************************************
+ON MANAGER:
+*************
+Go to the manager machine and give below command
+
+# systemctl start docker
+
+# docker swarm init --advertise-addr 172.31.17.248(privateip of manager)
+
+Curent node will be now be swarm Manager and it will generate a token id that can be executed on worker nodes so that they will join the swarm as workers.
+
+==> Copy the token id on notepad
+************************
+
+WORKER1 SETUP
+**********************
+
+# systemctl start docker
+
+paste the token command here from notepad  // as shown below:
+
+# docker swarm join --token SWMTKN-1-66xevqpe5r6h1gtcps1m867q8jcu93deyk87qudqdp7nyf8omk-7vna75w6jip5hmqp4h55bi3s3 172.31.17.248:2377
+
+// the worker1 will now join the swarm as worker
+It will give message as: This node joined a swarm as a worker.
+
+MANAGER NODE:
+
+Go to manager node and see if worker1 has joined the swarm or not
+
+# docker node ls
+
+2 nodes will be there .. maanager and worker1
+
+
+WORKER2 SETUP
+**********************
+
+# systemctl start docker
+
+paste the token command here from notepad  // as shown below:
+
+# docker swarm join --token SWMTKN-1-66xevqpe5r6h1gtcps1m867q8jcu93deyk87qudqdp7nyf8omk-7vna75w6jip5hmqp4h55bi3s3 172.31.17.248:2377
+
+// the worker2 will now join the swarm as worker
+It will give message as: This node joined a swarm as a worker.
+
+MANAGER NODE:
+
+Go to manager node and see if worker1 has joined the swarm or not
+
+# docker node ls
+
+3 nodes will be there .. maanager and worker1 and worker2
+
+**********SETUP COMPLETE********************************************
+
+
+SCEANRIO 1 : LOAD BALANCING or distribution of Service
+
+************************************************
+
+Here we will create a service nginx with 5 replicas and perform port mapping
+
+	# docker service create --name svc1 -p 8989:80 --replicas 5 nginx
+
+==>This will create 5 replicas of nginx and it is distributed on the nodes.
+
+==> to check the services
+
+	# docker service ps svc1
+
+
+ List all services on SWARM
+*******************************
+	# docker service ls
+
+*********************************
+Delete service on the SWARm
+
+	# docker service rm svc1
+
+//removes service
+
+	# docker service ls  // no service will be there
+*****************************************
+Scaling
+****************************
+Scenario2:
+
+Using the concept of scaling we can increase or reduce the replicas
+
+
+1.Create tomcat service with replica 3 with posrt mapping
+
+# docker service create --name mytomcat  -p 9090:8080 --replicas 3 tomcat
+
+2. 	# docker service ps mytomcat
+
+3. Now scale up the service to 5
+
+	# docker service scale mytomcat=5
+
+4. check if 5 replicas of tomcat are running
+
+	# docker service ps mytomcat    
+
+// total of 5 services will be there 2 more services added.
+
+5. Now scale down the services to 3
+
+	# docker service scale mytomcat=3
+
+6.  check if 3 replicas of tomcat are running
+
+	# docker service ps mytomcat    
+
+// total of 3 services will be there.
+
+******************************************
+SCENARIO 3: FAILOVER
+**************************************
+A. Create a httpd service with 6 replicas and delete one replica running on the manager 
+
+1. Create httpd service with 6 replicas
+
+      # docker service create --name mywebserver -p 9090:80 --replicas 6 httpd
+
+2. Check if all 6 replicas are running or not.
+
+ 	# docker service ps mywebserver
+
+3. On the MANAGER machine, delete a replica
+
+	# docker ps -a  // replicas will be displayed
+	# docker rm -f containername  // replica will be deleted
+	
+# docker ps -a
+# docker service ps mywebserver
+
+3. Drain worker1 from the swarm 
+	
+	# docker node ls
+	# docker node update --availability drain Worker1
+
+4. check if all 6 replicas are running on manager and worker2
+ 
+	# docker service ps mywebserver
+	
+	# docker service ps mywebserver | grep Running
+
+5. Make worker1 join the swarm again
+
+        # docker node update --availability active Worker1
+
+6. check if all 6 replicas are running on manager and worker1 and 2
+ 
+	# docker service ps mywebserver
+
+7. we can also go to worker2 git bash and leave the swarm
+	# systemctl start docker
+	# docker swarm leave
+
+
+8.Connect back to manager
+
+# docker node ls
+
+worker 2 will be in status down and Active
+
+9. Remove the worker2 node from the swarm
+
+	# docker node rm Worker2
+
+Worker 2 will not be in swarm now.
+
+	# docker node ls
+
+9.Check if all the replicas are still running or not.
+
+	# docker services ps webserver
+
+10. join back the worker2 to swarm
+
+	# docker swarm join-token worker
+
+copy the token and paste it on worker 2 machine
+
+docker swarm join --token SWMTKN-1-195rkd1a6332n2izpccyfn9d29q1mqs72ja0d4ueo63xyetrum-6t7d8m9tfcw9qtj86ske56p0q 172.31.44.159:2377
+
+Worker2 will join the swarm again
+
+on Manager machine:  # docker node ls   // worker 2 will be active and running
+
+**********************************************************
+ROLLING UPDATE/ ROLLING OUT:
+*************************************************************
+
+Create redis:3 with 5 replicas and update it to redis:4 and latter roll it back to redis:3
+
+1.Create redis:3 with 5 replicas
+
+# docker service create --name myredis --replicas 5 redis:3
+
+2.Check if 5 replicas are running or not
+
+Docker service ps myredis
+
+3.perform a rolling update from redis:3 to redis:4
+
+# docker service update --image redis:4 myredis
+
+4.Check if 5 replicas of redis:3 are shutdown and redis:4 are up and running
+
+# docker service ps myredis
+
+5.Perform roll back from redis:4 to redis:3
+
+# docker service update --rollback myredis
+
+6.Check if 5 replicas of redis:4 are shutdown and redis:3 are up and running
+
+# docker service ps myredis
+
+*****************************************************
+
+OVERLAY NETWORK
+
+****************************************************
+
+Create 1 custom overlay networks overlay1 
+
+Usecase 1: Create a tomcat service in swarm on overlay1 network
+
+
+1.Create 1 overlay network
+
+
+# docker network create --driver overlay overlay1
+
+2. Check if the networks are created or not
+
+# docker network ls
+
+3. Start tomcat service with 3 replicas on overlay1 network
+
+# docker service create --name mytomcat -p 8888:80 replicas 3 --network overlay1 tomcat
+
+4. Check if tomcat service is running on overlay1 network
+
+# docker service inspect mytomcat
+OR
+
+# docker service inspect mywebserver --pretty
+
+
+In network you will see netwrok to be overlay1
+
+
+ 
